@@ -1,146 +1,128 @@
 import streamlit as st
-import psycopg2
+import pandas as pd
+from pymongo import MongoClient
+import plotly.express as px
 
-# ---------------------------------------------------
-# CONFIGURACIÓN
-# ---------------------------------------------------
+# -----------------------------------
+# CONFIG
+# -----------------------------------
 st.set_page_config(
-    page_title="Banco Regional Andino",
-    page_icon="🏦",
-    layout="centered"
+    page_title="Sample Supplies Dashboard",
+    layout="wide",
 )
 
-st.title("🏦 Banco Regional Andino")
-st.subheader("Evaluación Inteligente de Crédito")
+st.title("📦 MongoDB Atlas - Sample Supplies Dashboard")
 
-# ---------------------------------------------------
-# CREDENCIALES BD
-# ---------------------------------------------------
-USER = st.secrets["DB_USER"]
-PASSWORD = st.secrets["DB_PASSWORD"]
-HOST = st.secrets["DB_HOST"]
-PORT = st.secrets["DB_PORT"]
-DBNAME = st.secrets["DB_NAME"]
+# -----------------------------------
+# CONNECTION
+# -----------------------------------
+@st.cache_resource
+def get_client():
+    uri = st.secrets["MONGO_URI"]
+    return MongoClient(uri)
 
-def get_connection():
-    return psycopg2.connect(
-        user=USER,
-        password=PASSWORD,
-        host=HOST,
-        port=PORT,
-        dbname=DBNAME,
-        connect_timeout=5
-    )
+client = get_client()
 
-# ---------------------------------------------------
-# SESSION STATE
-# ---------------------------------------------------
-if "cliente" not in st.session_state:
-    st.session_state.cliente = None
+# database y colección
+db = client["sample_supplies"]
+collection = db["sales"]
 
-if "aprobado" not in st.session_state:
-    st.session_state.aprobado = False
+# -----------------------------------
+# LOAD DATA
+# -----------------------------------
+@st.cache_data
+def load_data():
+    data = list(collection.find({}, {"_id": 0}))
+    df = pd.DataFrame(data)
+    return df
 
+df = load_data()
 
-# ---------------------------------------------------
-# FUNCION SCORE VISUAL
-# ---------------------------------------------------
-def mostrar_score(score):
+st.success(f"✅ Registros cargados: {len(df)}")
 
-    st.markdown("### 📊 Score Crediticio")
+# -----------------------------------
+# DATA CLEANING
+# -----------------------------------
+if "storeLocation" not in df.columns:
+    st.error("La columna storeLocation no existe.")
+    st.stop()
 
-    st.progress(score / 1000)
+df["purchaseDate"] = pd.to_datetime(df["purchaseDate"])
 
-    if score >= 750:
-        st.success("🟢 Riesgo Bajo")
-    elif score >= 600:
-        st.warning("🟡 Riesgo Medio")
-    else:
-        st.error("🔴 Riesgo Alto")
+# -----------------------------------
+# SIDEBAR FILTERS
+# -----------------------------------
+st.sidebar.header("Filtros")
 
+stores = df["storeLocation"].dropna().unique()
 
-# ---------------------------------------------------
-# BUSCAR CLIENTE
-# ---------------------------------------------------
-dni = st.text_input("🔎 Ingresa tu DNI")
+selected_store = st.sidebar.selectbox(
+    "Seleccionar tienda",
+    stores
+)
 
-if st.button("Evaluar cliente"):
+filtered_df = df[df["storeLocation"] == selected_store]
 
-    try:
-        conn = get_connection()
-        cur = conn.cursor()
+# -----------------------------------
+# KPIs
+# -----------------------------------
+total_sales = filtered_df["saleDate"].count()
+total_items = filtered_df["items"].apply(len).sum()
 
-        cur.execute("""
-            SELECT edad,
-                   ingreso_mensual,
-                   tipo_empleo,
-                   antiguedad_laboral,
-                   score_crediticio,
-                   deudas_actuales,
-                   ratio_deuda_ingreso,
-                   historial_pagos
-            FROM ml.credito
-            WHERE dni = %s
-            LIMIT 1
-        """, (dni,))
+col1, col2 = st.columns(2)
 
-        row = cur.fetchone()
+col1.metric("🛒 Ventas Totales", total_sales)
+col2.metric("📦 Items Vendidos", total_items)
 
-        cur.close()
-        conn.close()
+# -----------------------------------
+# SALES OVER TIME
+# -----------------------------------
+sales_time = (
+    filtered_df
+    .groupby(filtered_df["purchaseDate"].dt.date)
+    .size()
+    .reset_index(name="ventas")
+)
 
-        if row:
+fig_time = px.line(
+    sales_time,
+    x="purchaseDate",
+    y="ventas",
+    title="Ventas por Día"
+)
 
-            st.session_state.cliente = row
+st.plotly_chart(fig_time, use_container_width=True)
 
-            edad, ingreso, empleo, antiguedad, score, deudas, ratio, historial = row
+# -----------------------------------
+# ITEMS ANALYSIS
+# -----------------------------------
+items_df = filtered_df.explode("items")
 
-            # 🧠 MODELO SIMPLE CREDIT SCORING
-            if score >= 650 and ratio < 0.45 and historial != "malo":
-                st.session_state.aprobado = True
-            else:
-                st.session_state.aprobado = False
+items_df["itemName"] = items_df["items"].apply(
+    lambda x: x.get("name") if isinstance(x, dict) else None
+)
 
-        else:
-            st.error("❌ Cliente no encontrado")
-            st.session_state.cliente = None
+top_items = (
+    items_df["itemName"]
+    .value_counts()
+    .head(10)
+    .reset_index()
+)
 
-    except Exception as e:
-        st.error(f"Error conexión BD: {e}")
+top_items.columns = ["Producto", "Cantidad"]
 
+fig_items = px.bar(
+    top_items,
+    x="Producto",
+    y="Cantidad",
+    title="Top Productos Vendidos"
+)
 
-# ---------------------------------------------------
-# MOSTRAR RESULTADOS
-# ---------------------------------------------------
-if st.session_state.cliente:
+st.plotly_chart(fig_items, use_container_width=True)
 
-    edad, ingreso, empleo, antiguedad, score, deudas, ratio, historial = st.session_state.cliente
+# -----------------------------------
+# DATA PREVIEW
+# -----------------------------------
+st.subheader("📋 Vista de Datos")
 
-    st.success("✅ Cliente encontrado")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.metric("Edad", edad)
-        st.metric("Ingreso Mensual", f"S/ {ingreso:,.0f}")
-        st.metric("Tipo Empleo", empleo)
-
-    with col2:
-        st.metric("Antigüedad Laboral", f"{antiguedad} años")
-        st.metric("Deudas Actuales", f"S/ {deudas:,.0f}")
-        st.metric("Ratio Deuda/Ingreso", f"{ratio:.2f}")
-
-    st.divider()
-
-    # SCORE CREDITICIO
-    mostrar_score(score)
-
-    st.write(f"Historial de pagos: **{historial.upper()}**")
-
-    st.divider()
-
-    # DECISIÓN
-    if st.session_state.aprobado:
-        st.success("✅ Cliente PREAPROBADO para crédito")
-    else:
-        st.error("❌ Cliente NO califica para crédito")
+st.dataframe(filtered_df.head(50), use_container_width=True)
