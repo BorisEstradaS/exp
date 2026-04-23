@@ -195,7 +195,7 @@ if st.session_state.cliente:
         c1.metric("Cuota mensual",   f"S/ {cuota_mensual:,.2f}")
         c2.metric("Total a pagar",   f"S/ {total_pagar:,.2f}")
         c3.metric("Total intereses", f"S/ {total_intereses:,.2f}")
-        st.caption("⚙️ Tasa: 1.5% mensual (TEA ~19.56%). Sistema francés.")
+        st.caption("⚙️ Tasa: 1.5% mensual (TEA ~19.56%).")
 
         st.divider()
 
