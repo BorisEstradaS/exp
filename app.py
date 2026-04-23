@@ -40,7 +40,7 @@ st.markdown("""
     .metric-value { font-size: 1.1rem; font-weight: 600; margin: 0; }
     .score-bar-track {
         height: 8px; border-radius: 4px;
-        background: #111827; overflow: hidden; margin: 4px 0 12px;
+        background: #111827!important; overflow: hidden; margin: 4px 0 12px;
     }
     .score-bar-fill { height: 100%; border-radius: 4px; }
 </style>
