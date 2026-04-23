@@ -32,15 +32,15 @@ st.markdown("""
     .metric-box {
         flex: 1; min-width: 130px;
         background: #ffffff;
-        border: 1px solid #e5e7eb;
+        border: 1px solid #d1d5db;
         border-radius: 10px;
         padding: 0.75rem 1rem;
     }
-    .metric-label { font-size: 0.75rem; color: #374151; margin: 0; }
-    .metric-value { font-size: 1.1rem; font-weight: 600; margin: 0; }
+    .metric-label { font-size: 0.75rem; color: #374151 !important; margin: 0; }
+    .metric-value { font-size: 1.1rem; font-weight: 600; color: #111827 !important; margin: 0; }
     .score-bar-track {
         height: 8px; border-radius: 4px;
-        background: #111827!important; overflow: hidden; margin: 4px 0 12px;
+        background: #e5e7eb; overflow: hidden; margin: 4px 0 12px;
     }
     .score-bar-fill { height: 100%; border-radius: 4px; }
 </style>
