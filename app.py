@@ -31,16 +31,16 @@ st.markdown("""
     .metric-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
     .metric-box {
         flex: 1; min-width: 130px;
-        background: #f9fafb;
+        background: #ffffff;
         border: 1px solid #e5e7eb;
         border-radius: 10px;
         padding: 0.75rem 1rem;
     }
-    .metric-label { font-size: 0.75rem; color: #6b7280; margin: 0; }
+    .metric-label { font-size: 0.75rem; color: #374151; margin: 0; }
     .metric-value { font-size: 1.1rem; font-weight: 600; margin: 0; }
     .score-bar-track {
         height: 8px; border-radius: 4px;
-        background: #e5e7eb; overflow: hidden; margin: 4px 0 12px;
+        background: #111827; overflow: hidden; margin: 4px 0 12px;
     }
     .score-bar-fill { height: 100%; border-radius: 4px; }
 </style>
